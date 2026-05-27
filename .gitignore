@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+
+# Virtual Environment
+.venv/
+venv/
+
+# Streamlit
+.streamlit/
+
+# VS Code
+.vscode/
+
+# Environment Variables
+.env
+
+# Node Modules
+node_modules/
+
+# Logs
+*.log
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Docker
+*.tar
+
+# Build Files
+dist/
+build/
+
+# Cache
+.cache/
+pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
