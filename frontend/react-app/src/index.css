@@ -1,0 +1,54 @@
+:root {
+  --surface-0: #141c23;
+  --surface-1: #10161c;
+  --surface-2: #1a232c;
+  --surface-3: #1f2a35;
+  --border-subtle: #2a3642;
+  --text-base: #d7e0e8;
+  --text-strong: #f5f7f9;
+  --text-muted: #8fa3b4;
+  --primary-strong: #1f9bb6;
+  --primary-soft: rgba(31, 155, 182, 0.18);
+  --success: #3fbf8f;
+  --warning: #f2b84b;
+  --danger: #e05d5d;
+  --info: #4ca3ff;
+  --shadow-soft: 0 18px 38px rgba(4, 9, 12, 0.45);
+  --font-sans: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-display: "IBM Plex Serif", "Georgia", serif;
+  font-size: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--text-base);
+  background: #0b1116;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2 {
+  margin: 0;
+  color: var(--text-strong);
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+h2 {
+  font-size: 1.35rem;
+}
