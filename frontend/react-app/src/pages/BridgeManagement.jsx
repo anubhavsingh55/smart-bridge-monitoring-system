@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 
+import BridgeCard from "../components/BridgeCard";
+import DataTable from "../components/DataTable";
 import useLatestReadings from "../hooks/useLatestReadings";
 import {
   formatNumber,
   formatRelativeSeconds,
   formatTimestamp,
 } from "../utils/formatters";
+import { calculateHealthScore } from "../utils/healthScore";
+import { generateRecommendations } from "../utils/recommendations";
 import {
   getConnectionHealth,
   getMetricStatus,
@@ -34,29 +38,8 @@ const parseTimestamp = (value) => {
 const getReadingTimestamp = (reading) =>
   parseTimestamp(reading?.timestamp || reading?.created_at);
 
-const healthScoreFromMetrics = (reading) => {
-  if (!reading) {
-    return "--";
-  }
-  const statuses = [
-    getMetricStatus("temperature", reading.temperature),
-    getMetricStatus("humidity", reading.humidity),
-    getMetricStatus("vibration", reading.vibration),
-    getMetricStatus("battery", reading.battery_level),
-  ];
-  const penalty = statuses.reduce((total, status) => {
-    if (status.tone === "critical") {
-      return total + 25;
-    }
-    if (status.tone === "warning") {
-      return total + 10;
-    }
-    return total;
-  }, 0);
-  return Math.max(0, 100 - penalty);
-};
 
-function DigitalTwin() {
+function BridgeManagement() {
   const refreshMs = 5000;
   const { readings, apiOnline, lastUpdatedAt, lastResponseAt } =
     useLatestReadings(refreshMs);
@@ -92,10 +75,8 @@ function DigitalTwin() {
     }
   }, [latestByBridge, selectedBridge]);
 
-  const selectedReading = latestByBridge.get(selectedBridge);
-  const overallStatus = getOverallStatus(selectedReading);
-  const healthScore = healthScoreFromMetrics(selectedReading);
-  const lastUpdate = formatTimestamp(getReadingTimestamp(selectedReading));
+  const latestReading = sortedReadings[0];
+  const overallStatus = getOverallStatus(latestReading);
 
   const secondsSinceUpdate = useMemo(() => {
     if (!lastResponseAt) {
@@ -105,6 +86,114 @@ function DigitalTwin() {
   }, [lastResponseAt]);
 
   const connectionHealth = getConnectionHealth(secondsSinceUpdate);
+
+  const bridgeSnapshots = useMemo(() => {
+    return Array.from(latestByBridge.entries()).map(([bridgeId, reading]) => {
+      const readingTimestamp = getReadingTimestamp(reading);
+      const bridgeSeconds = readingTimestamp
+        ? Math.round((Date.now() - readingTimestamp.getTime()) / 1000)
+        : null;
+
+      return {
+        bridgeId,
+        reading,
+        lastUpdate: formatTimestamp(readingTimestamp),
+        status: getOverallStatus(reading),
+        connection: getConnectionHealth(bridgeSeconds),
+        metrics: [
+          {
+            label: "Temperature",
+            value: formatNumber(reading.temperature),
+            unit: "°C",
+            status: getMetricStatus("temperature", reading.temperature),
+          },
+          {
+            label: "Humidity",
+            value: formatNumber(reading.humidity),
+            unit: "%",
+            status: getMetricStatus("humidity", reading.humidity),
+          },
+          {
+            label: "Vibration",
+            value: formatNumber(reading.vibration),
+            unit: "m/s²",
+            status: getMetricStatus("vibration", reading.vibration),
+          },
+          {
+            label: "Battery",
+            value: formatNumber(reading.battery_level),
+            unit: "%",
+            status: getMetricStatus("battery", reading.battery_level),
+          },
+        ],
+      };
+    });
+  }, [latestByBridge]);
+
+  const fleetSummary = useMemo(() => {
+    const counts = { healthy: 0, warning: 0, critical: 0 };
+    bridgeSnapshots.forEach((snapshot) => {
+      if (snapshot.status.tone === "healthy") {
+        counts.healthy += 1;
+      } else if (snapshot.status.tone === "warning") {
+        counts.warning += 1;
+      } else if (snapshot.status.tone === "critical") {
+        counts.critical += 1;
+      }
+    });
+    return counts;
+  }, [bridgeSnapshots]);
+
+  const telemetryRows = useMemo(
+    () =>
+      bridgeSnapshots.map((snapshot) => ({
+        id: snapshot.bridgeId,
+        bridgeId: snapshot.bridgeId,
+        temperature: formatNumber(snapshot.reading?.temperature),
+        humidity: formatNumber(snapshot.reading?.humidity),
+        vibration: formatNumber(snapshot.reading?.vibration),
+        battery: formatNumber(snapshot.reading?.battery_level),
+        timestamp: snapshot.lastUpdate,
+        status: snapshot.status,
+      })),
+    [bridgeSnapshots]
+  );
+
+  const columns = [
+    { key: "bridgeId", label: "Bridge ID" },
+    { key: "temperature", label: "Temperature", align: "right" },
+    { key: "humidity", label: "Humidity", align: "right" },
+    { key: "vibration", label: "Vibration", align: "right" },
+    { key: "battery", label: "Battery", align: "right" },
+    { key: "timestamp", label: "Last Update" },
+    {
+      key: "status",
+      label: "Status",
+      render: (row) => (
+        <span className={`status-badge status-${row.status.tone}`}>
+          {row.status.label}
+        </span>
+      ),
+    },
+  ];
+
+  const selectedReading = latestByBridge.get(selectedBridge);
+  const selectedStatus = getOverallStatus(selectedReading);
+  const healthScoreResult = useMemo(
+    () => calculateHealthScore(selectedReading),
+    [selectedReading]
+  );
+  const healthScore = healthScoreResult.score;
+  const lastUpdate = formatTimestamp(getReadingTimestamp(selectedReading));
+
+  const maintenanceRecommendations = useMemo(() => {
+    const input = {
+      ...(selectedReading ?? {}),
+      healthScore: healthScoreResult.score,
+      status: selectedStatus,
+    };
+    return generateRecommendations(input).recommendations;
+  }, [selectedReading, healthScoreResult.score, selectedStatus]);
 
   const metricDetails = useMemo(
     () => [
@@ -137,25 +226,51 @@ function DigitalTwin() {
   );
 
   return (
-    <div className="digital-twin">
+    <div className="bridge-management">
       <section className="page-section">
         <div className="section-heading">
           <div className="page-header">
-            <h1>Digital Twin</h1>
+            <h1>Bridge Management</h1>
             <div className="page-actions">
               <span className={`status-badge status-${overallStatus.tone}`}>
-                {overallStatus.label === "Unknown"
-                  ? "Overall Unknown"
-                  : `Overall ${overallStatus.label}`}
+                Fleet {overallStatus.label}
               </span>
               <span className="data-freshness">
-                Data Freshness: {formatRelativeSeconds(lastResponseAt)}
+                Last Refresh: {formatRelativeSeconds(lastUpdatedAt)}
               </span>
             </div>
           </div>
           <p className="section-subtitle">
-            Engineering-grade digital twin with live sensor overlays.
+            Bridge-specific operations, digital twin diagnostics, and sensor health.
           </p>
+        </div>
+        <div className="bridges-header-grid">
+          <div className="card overview-card">
+            <span className="overview-label">Bridges Online</span>
+            <span className="overview-value">{bridgeSnapshots.length}</span>
+            <span className="overview-detail">Reporting live telemetry</span>
+          </div>
+          <div className="card overview-card">
+            <span className="overview-label">Healthy</span>
+            <span className="overview-value tone-healthy">
+              {fleetSummary.healthy}
+            </span>
+            <span className="overview-detail">Within nominal thresholds</span>
+          </div>
+          <div className="card overview-card">
+            <span className="overview-label">Warning</span>
+            <span className="overview-value tone-warning">
+              {fleetSummary.warning}
+            </span>
+            <span className="overview-detail">Investigate deviations</span>
+          </div>
+          <div className="card overview-card">
+            <span className="overview-label">Critical</span>
+            <span className="overview-value tone-critical">
+              {fleetSummary.critical}
+            </span>
+            <span className="overview-detail">Immediate attention</span>
+          </div>
         </div>
         <div className="status-strip">
           <span
@@ -167,16 +282,30 @@ function DigitalTwin() {
             Connection {connectionHealth.label}
           </span>
           <span className="status-badge status-neutral">
-            Selected Bridge: {selectedBridge}
+            Refresh Interval: {refreshMs / 1000}s
           </span>
         </div>
       </section>
 
       <section className="page-section">
         <div className="section-heading compact">
+          <h2>Bridge List</h2>
+          <p className="section-subtitle">
+            Latest reading captured per bridge.
+          </p>
+        </div>
+        <DataTable
+          columns={columns}
+          rows={telemetryRows}
+          emptyMessage="No bridge readings available yet."
+        />
+      </section>
+
+      <section className="page-section">
+        <div className="section-heading compact">
           <h2>Bridge Selector</h2>
           <p className="section-subtitle">
-            Choose the bridge to update the digital twin visualization.
+            Choose a bridge to inspect digital twin diagnostics.
           </p>
         </div>
         <div className="bridge-selector">
@@ -199,14 +328,14 @@ function DigitalTwin() {
         <div className="twin-layout">
           <div className="card twin-visual">
             <div className="twin-visual-header">
-              <h2>Bridge Visualization</h2>
-              <span className={`status-badge status-${overallStatus.tone}`}>
-                {overallStatus.label}
+              <h2>Digital Twin Visualization</h2>
+              <span className={`status-badge status-${selectedStatus.tone}`}>
+                {selectedStatus.label}
               </span>
             </div>
             <div className="twin-canvas">
               <svg
-                className={`twin-svg twin-${overallStatus.tone}`}
+                className={`twin-svg twin-${selectedStatus.tone}`}
                 viewBox="0 0 900 260"
                 role="img"
                 aria-label="Bridge schematic"
@@ -223,13 +352,13 @@ function DigitalTwin() {
               {sensorNodes.map((node) => (
                 <div
                   key={node.id}
-                  className={`sensor-node sensor-${overallStatus.tone}`}
+                  className={`sensor-node sensor-${selectedStatus.tone}`}
                   style={{ left: node.left, top: node.top }}
                 >
                   <div className="sensor-node-header">
                     <span className="sensor-id">{node.label}</span>
-                    <span className={`status-badge status-${overallStatus.tone}`}>
-                      {overallStatus.label}
+                    <span className={`status-badge status-${selectedStatus.tone}`}>
+                      {selectedStatus.label}
                     </span>
                   </div>
                   <div className="sensor-metrics">
@@ -273,8 +402,8 @@ function DigitalTwin() {
             <div className="card twin-summary">
               <div className="summary-header">
                 <h2>Bridge Summary</h2>
-                <span className={`status-badge status-${overallStatus.tone}`}>
-                  {overallStatus.label}
+                <span className={`status-badge status-${selectedStatus.tone}`}>
+                  {selectedStatus.label}
                 </span>
               </div>
               <div className="summary-grid">
@@ -305,9 +434,7 @@ function DigitalTwin() {
                       {metric.value}
                       {metric.unit}
                     </span>
-                    <span
-                      className={`status-badge status-${metric.status.tone}`}
-                    >
+                    <span className={`status-badge status-${metric.status.tone}`}>
                       {metric.status.label}
                     </span>
                   </div>
@@ -318,23 +445,81 @@ function DigitalTwin() {
             <div className="card twin-alert">
               <h2>Bridge Alert</h2>
               <p className="section-subtitle">
-                {overallStatus.tone === "critical" && "Critical Bridge Warning"}
-                {overallStatus.tone === "warning" && "Warning Condition"}
-                {overallStatus.tone === "healthy" && "Bridge Operating Normally"}
-                {overallStatus.tone === "neutral" && "Awaiting sensor data"}
+                {selectedStatus.tone === "critical" &&
+                  "Critical Bridge Warning"}
+                {selectedStatus.tone === "warning" && "Warning Condition"}
+                {selectedStatus.tone === "healthy" &&
+                  "Bridge Operating Normally"}
+                {selectedStatus.tone === "neutral" && "Awaiting sensor data"}
               </p>
               <div className="alert-state">
-                <span className={`status-dot status-${overallStatus.tone}`} />
+                <span className={`status-dot status-${selectedStatus.tone}`} />
                 <span className="alert-state-label">
-                  {overallStatus.label}
+                  {selectedStatus.label}
                 </span>
               </div>
             </div>
+
+            <div className="card twin-alert">
+              <h2>Maintenance Recommendations</h2>
+              {maintenanceRecommendations.length === 0 ? (
+                <p className="section-subtitle">No recommendations available.</p>
+              ) : (
+                <ul className="activity-list">
+                  {maintenanceRecommendations.map((item) => (
+                    <li key={item} className="activity-item">
+                      <span className="activity-primary">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
+      </section>
+
+      <section className="page-section">
+        <div className="section-heading compact">
+          <h2>Bridge Health Overview</h2>
+          <p className="section-subtitle">
+            Latest health snapshot per bridge with key metric status.
+          </p>
+        </div>
+        {bridgeSnapshots.length === 0 ? (
+          <div className="card empty-state">No bridge telemetry available.</div>
+        ) : (
+          <div className="bridge-detail-grid">
+            {bridgeSnapshots.map((snapshot) => (
+              <div key={snapshot.bridgeId} className="bridge-detail-card">
+                <BridgeCard
+                  bridgeId={snapshot.bridgeId}
+                  status={snapshot.status}
+                  lastUpdate={snapshot.lastUpdate}
+                  connection={snapshot.connection}
+                />
+                <div className="bridge-metric-grid">
+                  {snapshot.metrics.map((metric) => (
+                    <div key={metric.label} className="bridge-metric">
+                      <span className="bridge-metric-label">{metric.label}</span>
+                      <span className="bridge-metric-value">
+                        {metric.value}
+                        {metric.unit}
+                      </span>
+                      <span
+                        className={`status-badge status-${metric.status.tone}`}
+                      >
+                        {metric.status.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
-export default DigitalTwin;
+export default BridgeManagement;

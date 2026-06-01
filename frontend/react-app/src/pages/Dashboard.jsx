@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 
-import DataTable from "../components/DataTable";
 import MetricCard from "../components/MetricCard";
 import StatusCard from "../components/StatusCard";
 import useLatestReadings from "../hooks/useLatestReadings";
@@ -9,6 +8,8 @@ import {
 	formatRelativeSeconds,
 	formatTimestamp,
 } from "../utils/formatters";
+import { calculateHealthScore } from "../utils/healthScore";
+import { generateRecommendations } from "../utils/recommendations";
 import {
 	getConnectionHealth,
 	getMetricStatus,
@@ -91,6 +92,24 @@ const kpiIcons = {
 	),
 };
 
+const parseTimestamp = (value) => {
+	if (!value) {
+		return null;
+	}
+	const date = new Date(value);
+	return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getReadingTimestamp = (reading) =>
+	parseTimestamp(reading?.timestamp || reading?.created_at);
+
+const metricLabels = {
+	temperature: "temperature",
+	humidity: "humidity",
+	vibration: "vibration",
+	battery: "battery",
+};
+
 function Dashboard() {
 	const { readings, apiOnline, lastUpdatedAt, lastResponseAt } =
 		useLatestReadings(5000);
@@ -106,43 +125,59 @@ function Dashboard() {
 		[readings]
 	);
 
-	const tableRows = useMemo(
-		() =>
-			readings.map((reading) => ({
+	const sortedReadings = useMemo(() => {
+		return [...readings].sort((first, second) => {
+			const firstTime = getReadingTimestamp(first)?.getTime() || 0;
+			const secondTime = getReadingTimestamp(second)?.getTime() || 0;
+			return secondTime - firstTime;
+		});
+	}, [readings]);
+
+	const recentActivity = useMemo(() => {
+		return sortedReadings.slice(0, 5).map((reading) => {
+			const metricStatuses = {
+				temperature: getMetricStatus("temperature", reading.temperature),
+				humidity: getMetricStatus("humidity", reading.humidity),
+				vibration: getMetricStatus("vibration", reading.vibration),
+				battery: getMetricStatus("battery", reading.battery_level),
+			};
+			const criticalMetric = Object.entries(metricStatuses).find(
+				([, status]) => status.tone === "critical"
+			);
+			const warningMetric = Object.entries(metricStatuses).find(
+				([, status]) => status.tone === "warning"
+			);
+			const flaggedMetric = criticalMetric || warningMetric;
+			const metricLabel = flaggedMetric
+				? metricLabels[flaggedMetric[0]]
+				: null;
+			const tone = flaggedMetric ? flaggedMetric[1].label : "Updated";
+			const message = metricLabel
+				? `Bridge ${reading.bridge_id} ${tone.toLowerCase()} ${metricLabel}`
+				: `Bridge ${reading.bridge_id} updated`;
+			return {
 				id: reading.id,
 				bridgeId: reading.bridge_id,
-				temperature: formatNumber(reading.temperature),
-				humidity: formatNumber(reading.humidity),
-				vibration: formatNumber(reading.vibration),
-				battery: formatNumber(reading.battery_level),
-				timestamp: formatTimestamp(reading.timestamp || reading.created_at),
+				timestamp: formatTimestamp(getReadingTimestamp(reading)),
 				status: getOverallStatus(reading),
-			})),
-		[readings]
-	);
-
-	const columns = [
-		{ key: "bridgeId", label: "Bridge ID" },
-		{ key: "temperature", label: "Temperature", align: "right" },
-		{ key: "humidity", label: "Humidity", align: "right" },
-		{ key: "vibration", label: "Vibration", align: "right" },
-		{ key: "battery", label: "Battery", align: "right" },
-		{ key: "timestamp", label: "Timestamp" },
-		{
-			key: "status",
-			label: "Status",
-			render: (row) => (
-				<span className={`status-badge status-${row.status.tone}`}>
-					{row.status.label}
-				</span>
-			),
-		},
-	];
-
-	const recentActivity = tableRows.slice(0, 5);
-	const latestReading = readings[0];
+				message,
+			};
+		});
+	}, [sortedReadings]);
+	const latestReading = sortedReadings[0];
 	const previousReading = readings[1];
 	const overallStatus = getOverallStatus(latestReading);
+	const healthScore = useMemo(
+		() => calculateHealthScore(latestReading),
+		[latestReading]
+	);
+	const topRecommendation = useMemo(() => {
+		const input = latestReading
+			? { ...latestReading, healthScore: healthScore.score, status: overallStatus }
+			: { healthScore: healthScore.score, status: overallStatus };
+		const recommendations = generateRecommendations(input).recommendations;
+		return recommendations[0] || "No maintenance recommendations.";
+	}, [latestReading, healthScore.score, overallStatus]);
 	const bridgesMonitored = useMemo(() => {
 		const uniqueBridges = new Set(readings.map((item) => item.bridge_id));
 		return uniqueBridges.size;
@@ -218,6 +253,16 @@ function Dashboard() {
 						<span className="overview-detail">Latest bridge snapshot</span>
 					</div>
 				</div>
+				<div className="section-heading compact">
+					<h2>Top Recommendation</h2>
+					<p className="section-subtitle">
+						Most severe maintenance action based on live telemetry.
+					</p>
+				</div>
+				<div className="card">
+					<span className="overview-label">Most Severe Recommendation</span>
+					<span className="summary-detail">{topRecommendation}</span>
+				</div>
 				<div className="kpi-grid">
 					<MetricCard
 						label="Total Readings"
@@ -225,6 +270,13 @@ function Dashboard() {
 						icon={kpiIcons.total}
 						trend="steady"
 						context={`Updated ${formatRelativeSeconds(lastResponseAt)}`}
+					/>
+					<MetricCard
+						label="Health Score"
+						value={healthScore.score}
+						icon={kpiIcons.total}
+						trend="steady"
+						context={healthScore.status}
 					/>
 					<MetricCard
 						label="Average Temperature"
@@ -341,20 +393,6 @@ function Dashboard() {
 
 			<section className="page-section">
 				<div className="section-heading compact">
-					<h2>Latest Readings</h2>
-					<p className="section-subtitle">
-						Most recent sensor snapshots across the monitored bridge network.
-					</p>
-				</div>
-				<DataTable
-					columns={columns}
-					rows={tableRows}
-					emptyMessage="No readings available yet."
-				/>
-			</section>
-
-			<section className="page-section">
-				<div className="section-heading compact">
 					<h2>Recent Activity</h2>
 					<p className="section-subtitle">
 						Latest five updates from the live monitoring stream.
@@ -368,7 +406,7 @@ function Dashboard() {
 							{recentActivity.map((item) => (
 								<li key={item.id} className="activity-item">
 									<span className="activity-primary">
-										Bridge {item.bridgeId} recorded metrics
+										{item.message}
 									</span>
 									<span className="activity-secondary">{item.timestamp}</span>
 									<span

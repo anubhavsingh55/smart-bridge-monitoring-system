@@ -17,8 +17,8 @@ const navItems = [
 		),
 	},
 	{
-		label: "Live Monitoring",
-		to: "/live-monitoring",
+		label: "Monitoring Center",
+		to: "/monitoring-center",
 		icon: (
 			<svg viewBox="0 0 24 24" aria-hidden="true">
 				<path
@@ -33,7 +33,7 @@ const navItems = [
 		),
 	},
 	{
-		label: "Bridges",
+		label: "Bridge Management",
 		to: "/bridges",
 		icon: (
 			<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -56,46 +56,6 @@ const navItems = [
 				<path
 					d="M4 18V9m6 9V6m6 12v-4m4 6H2"
 					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.6"
-					strokeLinecap="round"
-				/>
-			</svg>
-		),
-	},
-	{
-		label: "Alerts",
-		to: "/alerts",
-		icon: (
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<path
-					d="M12 9v4m0 4h.01M5 20h14l-7-16z"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.6"
-					strokeLinecap="round"
-					strokeLinejoin="round"
-				/>
-			</svg>
-		),
-	},
-	{
-		label: "Digital Twin",
-		to: "/digital-twin",
-		icon: (
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<rect
-					x="4"
-					y="5"
-					width="16"
-					height="12"
-					rx="2"
-					fill="none"
-					stroke="currentColor"
-					strokeWidth="1.6"
-				/>
-				<path
-					d="M8 19h8"
 					stroke="currentColor"
 					strokeWidth="1.6"
 					strokeLinecap="round"

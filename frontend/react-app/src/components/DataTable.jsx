@@ -1,4 +1,4 @@
-function DataTable({ columns, rows, emptyMessage }) {
+function DataTable({ columns, rows, emptyMessage, rowClassName }) {
   return (
     <div className="card table-card">
       <table className="data-table">
@@ -23,7 +23,10 @@ function DataTable({ columns, rows, emptyMessage }) {
             </tr>
           ) : (
             rows.map((row) => (
-              <tr key={row.id ?? row.key}>
+              <tr
+                key={row.id ?? row.key}
+                className={rowClassName ? rowClassName(row) : undefined}
+              >
                 {columns.map((column) => (
                   <td
                     key={column.key}
