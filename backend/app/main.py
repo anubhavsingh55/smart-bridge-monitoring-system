@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from ..api.sensor_routes import router as sensor_router
-from ..database.config import init_db
-from ..websocket.routes import router as websocket_router
+from api.sensor_routes import router as sensor_router
+from database.config import init_db
+from websocket.routes import router as websocket_router
 
 app = FastAPI(title="Bridge Health Monitoring API")
 
