@@ -1,0 +1,50 @@
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: bridge-postgres
+
+    environment:
+      POSTGRES_DB: bridge_db
+      POSTGRES_USER: bridge_user
+      POSTGRES_PASSWORD: bridge_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: bridge-backend
+
+    depends_on:
+      - postgres
+
+    environment:
+      DATABASE_URL: postgresql://bridge_user:bridge_password@postgres:5432/bridge_db
+
+    ports:
+      - "8000:8000"
+
+  simulator:
+    build:
+      context: .
+      dockerfile: simulator/Dockerfile
+
+    container_name: bridge-simulator
+
+    depends_on:
+      - backend
+
+    environment:
+      API_URL: http://backend:8000/api/sensors/readings
+
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

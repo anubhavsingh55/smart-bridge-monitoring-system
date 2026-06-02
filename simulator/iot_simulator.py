@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import time
 import json
@@ -9,7 +10,10 @@ from datetime import datetime
 # CONFIGURATION
 # =========================
 
-API_URL = "http://127.0.0.1:8000/api/sensors/readings"
+API_URL = os.getenv(
+    "API_URL",
+    "http://backend:8000/api/sensors/readings"
+)
 
 bridge_ids = [
     "Bridge_A",
@@ -22,7 +26,7 @@ bridge_ids = [
 # LOAD CLEANED DATASET
 # =========================
 
-file_path = "cleaned dataset/cleaned_bridge_dataset.csv"
+file_path = "cleaned_dataset/cleaned_bridge_dataset.csv"
 
 df = pd.read_csv(file_path)
 
@@ -33,7 +37,8 @@ print("\n===================================")
 print(" BRIDGE IOT SIMULATOR STARTED ")
 print("===================================\n")
 
-print(f"Loaded {len(df)} records\n")
+print(f"Loaded {len(df)} records")
+print(f"API URL: {API_URL}\n")
 
 # =========================
 # CONTINUOUS DATA STREAMING
