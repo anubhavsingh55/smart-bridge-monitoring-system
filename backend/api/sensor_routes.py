@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from ..database.config import get_db
-from ..schemas.sensor import SensorReadingCreate, SensorReadingOut
-from ..services.sensor_service import create_sensor_reading, get_latest_sensor_readings
-from ..websocket.connection_manager import manager
+from database.config import get_db
+from schemas.sensor import SensorReadingCreate, SensorReadingOut
+from services.sensor_service import create_sensor_reading, get_latest_sensor_readings
+from websocket.connection_manager import manager
 
 router = APIRouter(prefix="/api/sensors", tags=["sensors"])
 

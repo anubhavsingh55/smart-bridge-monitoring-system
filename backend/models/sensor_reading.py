@@ -1,7 +1,7 @@
 from sqlalchemy import Column, DateTime, Float, Integer, String
 from sqlalchemy.sql import func
 
-from ..database.base import Base
+from database.base import Base
 
 
 class SensorReading(Base):

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
-from ..models.sensor_reading import SensorReading
-from ..schemas.sensor import SensorReadingCreate
+from models.sensor_reading import SensorReading
+from schemas.sensor import SensorReadingCreate
 
 
 def create_sensor_reading(db: Session, payload: SensorReadingCreate) -> SensorReading:
