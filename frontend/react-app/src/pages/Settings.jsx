@@ -39,7 +39,9 @@ function Settings() {
 					</div>
 					<div className="card settings-card">
 						<span className="overview-label">API Endpoint</span>
-						<span className="overview-value">http://127.0.0.1:8000</span>
+						<span className="overview-value">
+							{import.meta.env.VITE_API_URL}
+						</span>
 						<span className="overview-detail">FastAPI gateway</span>
 					</div>
 					<div className="card settings-card">
