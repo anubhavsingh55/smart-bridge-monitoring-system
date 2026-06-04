@@ -12,7 +12,7 @@ from datetime import datetime
 
 API_URL = os.getenv(
     "API_URL",
-    "http://backend:8000/api/sensors/readings"
+    "https://smart-bridge-monitoring-system-production.up.railway.app/api/sensors/readings"
 )
 
 bridge_ids = [
