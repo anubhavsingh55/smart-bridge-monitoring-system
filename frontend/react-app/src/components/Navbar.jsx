@@ -44,7 +44,7 @@ const playBuzzer = () => {
 	};
 };
 
-function Navbar() {
+function Navbar({ onMenuClick }) {
 	const [time, setTime] = useState(formatTime(new Date()));
 	const { readings, apiOnline, lastResponseAt } = useLatestReadings(5000);
 	const [toasts, setToasts] = useState([]);
@@ -179,11 +179,22 @@ function Navbar() {
 					</div>
 				))}
 			</div>
-			<div className="navbar-title">
-				<span className="navbar-title-text">Smart Bridge Health Monitoring</span>
-				<span className="navbar-subtitle">
-					Industrial asset integrity dashboard
-				</span>
+			<div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+				<button 
+					className="sidebar-toggle" 
+					onClick={onMenuClick}
+					aria-label="Open menu"
+				>
+					<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+						<path d="M3 12h18M3 6h18M3 18h18" />
+					</svg>
+				</button>
+				<div className="navbar-title">
+					<span className="navbar-title-text">Smart Bridge Health Monitoring</span>
+					<span className="navbar-subtitle">
+						Industrial asset integrity dashboard
+					</span>
+				</div>
 			</div>
 			<div className="navbar-meta">
 				<div className="navbar-time">
@@ -196,7 +207,7 @@ function Navbar() {
 						aria-hidden="true"
 					/>
 					<span className="navbar-value">
-						System {apiOnline ? "Operational" : "Offline"}
+						{apiOnline ? "Operational" : "Offline"}
 					</span>
 					{hasCriticalAlert ? (
 						<span className="navbar-critical critical-pulse">

@@ -101,9 +101,14 @@ const navItems = [
 	},
 ];
 
-function Sidebar() {
+function Sidebar({ isOpen, onClose }) {
 	return (
-		<aside className="sidebar">
+		<aside className={`sidebar ${isOpen ? "open" : ""}`}>
+			<button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+				<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+					<path d="M18 6L6 18M6 6l12 12" />
+				</svg>
+			</button>
 			<div className="sidebar-header">
 				<div className="sidebar-brand">SBHM</div>
 				<span className="sidebar-subtitle">Monitoring Core</span>
@@ -118,6 +123,9 @@ function Sidebar() {
 						}
 						end={item.to === "/"}
 						title={item.label}
+						onClick={() => {
+							if (window.innerWidth < 1024) onClose();
+						}}
 					>
 						<span className="nav-icon" aria-hidden="true">
 							{item.icon}
