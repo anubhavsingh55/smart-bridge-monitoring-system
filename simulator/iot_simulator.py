@@ -25,7 +25,6 @@ bridge_ids = [
 # =========================
 # LOAD CLEANED DATASET
 # =========================
-
 file_path = "cleaned_dataset/cleaned_bridge_dataset.csv"
 
 df = pd.read_csv(file_path)
