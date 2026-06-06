@@ -4,6 +4,5 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install pandas numpy matplotlib
-
+RUN pip install pandas numpy matplotlib requests
 CMD ["python", "simulator/iot_simulator.py"]
